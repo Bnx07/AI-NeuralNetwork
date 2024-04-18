@@ -269,13 +269,14 @@ const calculateNeurons = (model :any, inputs :number[]) => {
         // • }
     // • }
 
-    return totalLayers;
+    return gModel;
 }
 
 // * ---------------------------------- WEIGHTS VARIATIONS (Random) ----------------------------------
 
 let brainTest = createModel([["input", 2], ["sigmoid", 2], ["sigmoid", 1]], 1)
 
-console.log(brainTest)
-
 let result = calculateNeurons(brainTest, [1, 0]);
+
+console.log(brainTest);
+console.log(result);
