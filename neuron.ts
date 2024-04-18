@@ -93,7 +93,8 @@ const softmax = (logits :number[]) :number[] => { // ? This is e elevated to xi 
 
 // TODO: Hacer que cree el modelo según un array de datos
 // ? Array de ejemplo: [["input", 4], ["sigmoid", 3], ["sigmoid", 1]]
-let createModel = (layers :any[][], initialWeights: number) => {
+let createModel = (layers :any[][], initialWeightValue :number) => {
+    // ! The initialWeightValue is used to create a range between initialWeightValue and -initialWeightValue
     // FIXME: The model hasnt any weights incorporated, nor relations about from where to take the values
     let model :any = {}
 
@@ -104,44 +105,48 @@ let createModel = (layers :any[][], initialWeights: number) => {
     model.lastLayerNeurons = 0;
 
     // ? Handling hidden layers
-    for (let i = 1; i < layers.length - 1; i++) { // Iterate over layers except the output layer
+    for (let i = 1; i < layers.length - 1; i++) { // ? Iterate over layers except the input and output layer (Thats why it ignores the 0 and last)
         
         let lastLayerAmount :number;
-        let layerConnections :string[] = []; // ? This are the connections with last layer, will be pushed at the end
+        let layerConnections :number[][] = []; // ? This are the connections with last layer, will be pushed at the end
+        // FIXME: layerConnections MIGHT need to be 2D
         
-        let propName = `layer${i + 1}`;
+        let propName = `layer${i}`; // ? This + 1 is for the layers to start in 2, as the layer 1 is the input one
         model[propName] = [];
         model[`${propName}Type`] = layers[i][0];
         model[`${propName}Amount`] = layers[i][1];
+        model[`${propName}Connections`] = [];
         
         // ' This if is for calculating how many neurons are in the last layer (Respectively to this)
 
-        if (i != 1) { // ? If it isnt the first hidden layer, the last layers neurons will be this
-            lastLayerAmount = model[`layer${i}Amount`];
+        if (i != 1) { // ? If it isnt the first hidden layer, take the last hidden layer as inputs
+            lastLayerAmount = model[`layer${i-1}Amount`]; // ? This is the amount of neurons
+
+            model[`${propName}LastLayer`] = `layer${i}` // ? This is the name of the last layer
         } else { // ? If it is the first hidden layer, take the inputs
-            lastLayerAmount = model.inputsAmount;
+
+            lastLayerAmount = model.inputsAmount;// ? This is the amount of inputs
+            
+            model[`${propName}LastLayer`] = model.inputs; // ? This is the name of the last layer
         }
 
-        // ' Creating connections dynamically
+        // ' Creating connections dynamically with initial weights
 
-        for (let j = 0; j < layers[i][1]; j++) {
-            // ? Do links to all the neurons from the last layer
-            
-            // ? This should be something like:
-            // ? For this layer, take the values model.lastLayer[0] to model.lastLayer[j]
-            
-            // ? The connections are directly called lastLayer[number]
-            layerConnections.push(`layer${i}[${j}]`); // ? This tells which layer it is (i) and which neuron it reads (j)
+        // ? For creating the initial weights its necessary to have two things
+        // • How many neurons are there in the current layer
+        // • How many neurons are in the last layer
+        // ? After having those two things, its necessary to map each neuron with ALL the neurons in the last layer
+
+        for (let n = 0; n < layers[i][1]; n++) { // ? N because of neuron
+            for (let l = 0; l < lastLayerAmount; l++) { // ? L for LastLayerNeuron
+
+  	            let weight = Math.random() * (2 * initialWeightValue) - initialWeightValue;
+                layerConnections[n][l] = weight;
+                // ? This makes in the neuron n, a connection with the last layer neuron l and initializes the weight as initialWeight
+            }
         }
 
         model[`${propName}Connections`] = layerConnections;
-
-        // TODO: The comments below
-
-        // ? Could make here something that if i == 1, and for example, the layer 1 has 2 neurons, and the input 2 neurons
-        // ? Then initialize the connections like [ [[inputs[0], inputs[1], [initialWeight, initialWeight]], [[inputs[0], inputs[1], [initialWeight, initialWeight]] ]
-
-        // ? For the layers different than 1, it should be `layer${i-1}` instead of inputs, and it would look like model[`layer${i-1}`]
     }
 
 
