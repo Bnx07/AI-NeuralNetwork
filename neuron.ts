@@ -71,7 +71,7 @@ const softmax = (logits :number[]) :number[] => { // ? This is e elevated to xi 
 // * ---------------------------------- CONDITIONS NEEDED FOR THE PROGRAM ----------------------------------
 
 // ' Design the structure in array
-// ? For example [4, ["sigmoid", 3], ["sigmoid", 1]]
+// ? For example [["input", 4], ["sigmoid", 3], ["sigmoid", 1]]
 // ? That example would be:
 // ? Input layer:       4
 // ? Hidden layer 1:    3
@@ -87,9 +87,46 @@ const softmax = (logits :number[]) :number[] => { // ? This is e elevated to xi 
 // ? model.outputdata = [[4], [8]]
 // ? This would be translated as the case with four 1 as inputs has an output that is 4, the case with four 2 as inputs has an output that is 8
 
-// * ---------------------------------- ACTUAL PROGRAMMING ----------------------------------
+// ! ---------------------------------- ACTUAL PROGRAMMING ----------------------------------
 
-// ! Model structurating
+// * ---------------------------------- AUXILIAR FUNCTIONS ----------------------------------
+
+const unifyValues = (values: number[]) => {
+    let value = 0;
+
+    for (let i = 0; i < values.length; i++) {
+        value += values[i];
+    }
+
+    return value;
+}
+
+const calculateNeuronValue = (activation: string, values: number[]) :number | number[] => {
+    console.log(activation)
+    console.log(values)
+    let result;
+    switch (activation) {
+        case "relu":
+            result = relu(unifyValues(values));
+            break;
+        case "sigmoid":
+            result = sigmoid(unifyValues(values));
+            break;
+        case "softmax": // ! I dont know how to do with this, softmax recieves an array instead of a value
+            result = softmax(values);
+            break;
+        case "tanh":
+            result = tanh(unifyValues(values))
+            break;
+        case "linear":
+            result = linear(unifyValues(values))
+            break;
+    }
+    console.log("Neuron result: ", result)
+    return result;
+}
+
+// * ---------------------------------- MODEL STRUCTURE ----------------------------------
 
 // TODO: Hacer que cree el modelo según un array de datos
 // ? Array de ejemplo: [["input", 4], ["sigmoid", 3], ["sigmoid", 1]]
@@ -105,13 +142,13 @@ let createModel = (layers :any[][], initialWeightValue :number) => {
     model.lastLayerNeurons = 0;
 
     // ? Handling hidden layers
-    for (let i = 1; i < layers.length - 1; i++) { // ? Iterate over layers except the input and output layer (Thats why it ignores the 0 and last)
+    for (let i = 1; i < layers.length; i++) { // ? Iterate over layers except the input one (Thats why it starts as 1)
         
         let lastLayerAmount :number;
         let layerConnections :number[][] = []; // ? This are the connections with last layer, will be pushed at the end
         // FIXME: layerConnections MIGHT need to be 2D
         
-        let propName = `layer${i}`; // ? This + 1 is for the layers to start in 2, as the layer 1 is the input one
+        let propName = `layer${i}`; // ? The layer 0 is the input one
         model[propName] = [];
         model[`${propName}Type`] = layers[i][0];
         model[`${propName}Amount`] = layers[i][1];
@@ -122,12 +159,12 @@ let createModel = (layers :any[][], initialWeightValue :number) => {
         if (i != 1) { // ? If it isnt the first hidden layer, take the last hidden layer as inputs
             lastLayerAmount = model[`layer${i-1}Amount`]; // ? This is the amount of neurons
 
-            model[`${propName}LastLayer`] = `layer${i}` // ? This is the name of the last layer
+            model[`${propName}LastLayer`] = `layer${i - 1}` // ? This is the name of the last layer
         } else { // ? If it is the first hidden layer, take the inputs
 
             lastLayerAmount = model.inputsAmount;// ? This is the amount of inputs
             
-            model[`${propName}LastLayer`] = model.inputs; // ? This is the name of the last layer
+            model[`${propName}LastLayer`] = "inputs"; // ? This is the name of the last layer
         }
 
         // ' Creating connections dynamically with initial weights
@@ -138,6 +175,7 @@ let createModel = (layers :any[][], initialWeightValue :number) => {
         // ? After having those two things, its necessary to map each neuron with ALL the neurons in the last layer
 
         for (let n = 0; n < layers[i][1]; n++) { // ? N because of neuron
+            layerConnections[n] = [];
             for (let l = 0; l < lastLayerAmount; l++) { // ? L for LastLayerNeuron
 
   	            let weight = Math.random() * (2 * initialWeightValue) - initialWeightValue;
@@ -149,39 +187,95 @@ let createModel = (layers :any[][], initialWeightValue :number) => {
         model[`${propName}Connections`] = layerConnections;
     }
 
+    // ? Specifying which is the outputLayer
 
-    // ? Handling output layer
-    let outputLayer = layers[layers.length - 1];
-    model.output = [];
-    model.outputType = outputLayer[0];
-    model.outputAmount = outputLayer[1];
+    model.outputLayer = `layer${layers.length - 1}`
 
     return model;
 }
 
-// let initialBrain = [
-//     [0, 0],
-//     [0]
-// ];
+// * ---------------------------------- MODEL CALCULATIONS ---------------------------------- Pensar qué nombre poner, es que lea las distintas cosas para funcionar
 
-// const calculateNeuron = (activation: string, values: number[]) => {
-//     switch (activation) {
-//         case "ReLU":
-//             break;
-//         case "Sigmoid":
-//             break;
-//         case "Softmax":
-//             break;
-//         case "Tanh":
-//             break;
-//         case "Linear":
-//             break;
-        
-//     }
-// }
+const calculateNeurons = (model :any, inputs :number[]) => {
+    if (!model.inputsAmount || !model.outputLayer || model.inputsAmount != inputs.length) { // ? Basic verifications
+        return false;
+    }
 
-// let connections = [[0, 1, "multiply", "value"], [0, 2, "and", "value (NULL)"], []]
+    let gModel = JSON.parse(JSON.stringify(model)) // ? This is for not modifying the model itself
 
-const logits = [2, 1.5, 1];
-const probabilities = softmax(logits);
-console.log(probabilities); // Print the resulting probabilities
+    gModel.inputs = inputs;
+
+    let totalLayers = Number(model.outputLayer.slice(5))
+
+    for (let layers = 1; layers <= totalLayers; layers ++) { // ? Iterates as many times as layers exist
+        let layerNeurons = gModel[`layer${layers}Amount`];
+        let lastLayerNeurons;
+        let layerTotalInputs :number[][] = []; // ? This variable is used for storing the total neuron input of all neurons 
+
+        if (layers != 1) { // ? If this is not the first hidden layer, the last layer amount of neurons is defined as
+            lastLayerNeurons = `layer${layers - 1}`;
+        } else { // ? If it is the first hidden layer, the amount is gModel.inputsAmount
+            lastLayerNeurons = "inputs";
+        }
+
+        console.log("\n-------- NEW LAYER --------\n")
+
+        console.log("Layer neurons: ", layerNeurons);
+        for (let neuron = 0; neuron < layerNeurons; neuron ++) { // ? For each neuron in the layer
+            console.log("\nNeuron number ", neuron)
+            let totalNeuronInput :number[]= []; // ? Total values of the neuron, they are stored as an array because softmax requires an array, not a number
+
+            let neuronConnections = gModel[`layer${layers}Connections`][neuron]
+            console.log("Neuron connections: ", neuronConnections);
+            console.log("LastLayerNeurons", lastLayerNeurons);
+            
+            // ? lln stands for last layer neuron
+            for (let lln = 0; lln <= Number(gModel[`${lastLayerNeurons}Amount`]) - 1; lln ++) { // ? For each last layer neuron
+                console.log("Input value: ", gModel[`${lastLayerNeurons}`][lln])
+                console.log("Input weight: ", neuronConnections[lln]);
+                totalNeuronInput.push(gModel[`${lastLayerNeurons}`][lln] * neuronConnections[lln]);
+                // ? Adds to the neuron total input the lln value multiplied by the weight
+            }
+
+            // ? At this point, the neuron has its total input
+
+            layerTotalInputs.push(totalNeuronInput);
+
+            console.log("Neuron total input: ", totalNeuronInput);
+        }
+
+        console.log("Layer total inputs: ", layerTotalInputs);
+
+        for (let tiv = 0; tiv < layerTotalInputs.length; tiv++) {
+            gModel[`layer${layers}`].push(calculateNeuronValue(gModel[`layer${layers}Type`], layerTotalInputs[tiv]))
+        }
+
+        // ? At this point, the layer has all the input values and is ready for utilizing its activation function
+
+        // ! Do everything else
+    }
+    // * The process should be like:
+    // • Create a duplicated model, from now refered as gModel
+    // • Set the gModel.inputs as the function inputs
+    // • Excecute a while (there are more layers) {
+        // • For each layerNeuron {
+            // • let totalSum = 0
+            // • For each neuronConnection {
+                // • totalSum += lastLayerNeurons[number] * weight
+            // • }
+            // ? Once all the weights for the neuron were calculated, do neuronFunction(totalSum)
+            // ? Then push that result to the neuronValue
+            // • 
+        // • }
+    // • }
+
+    return totalLayers;
+}
+
+// * ---------------------------------- WEIGHTS VARIATIONS (Random) ----------------------------------
+
+let brainTest = createModel([["input", 2], ["sigmoid", 2], ["sigmoid", 1]], 1)
+
+console.log(brainTest)
+
+let result = calculateNeurons(brainTest, [1, 0]);
