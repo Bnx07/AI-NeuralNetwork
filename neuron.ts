@@ -142,9 +142,7 @@ const unifyValues = (values: number[]) => {
     return value;
 }
 
-const calculateNeuronValue = (activation: string, values: number[]) :number | number[] => {
-    // FIXME: console.log(activation)
-    // FIXME: console.log(values)
+const calculateNeuronValue = (activation: string, values: number[], showResult = false) :number | number[] => {
     let result;
     switch (activation) {
         case "relu":
@@ -168,11 +166,14 @@ const calculateNeuronValue = (activation: string, values: number[]) :number | nu
             result = linear(unifyValues(values))
             break;
     }
-    // FIXME: console.log("Neuron result: ", result)
+    if (showResult) console.log("Neuron result: ", result)
     return result;
 }
 
-const calculateDerivateValue = (activation: string, values: number[]) :number => {
+const calculateDerivateValue = (activation: string, values: number[], showResult = false) :number => {
+
+    // ! THE FUNCTION ISNT WORKING PROPERLY
+
     let result;
     switch (activation) {
         case "relu":
@@ -194,16 +195,15 @@ const calculateDerivateValue = (activation: string, values: number[]) :number =>
             result = derLinear(unifyValues(values))
             break;
     }
-    // FIXME: console.log("Neuron result: ", result)
+    if (showResult) console.log("Neuron result: ", result)
     return result;
 }
 
 // * ---------------------------------- MODEL STRUCTURE ----------------------------------
 
 // ? Array de ejemplo: [["input", 4], ["sigmoid", 3], ["sigmoid", 1]]
-let createModel = (layers :any[][], initialWeightValue :number) => {
+let createModel = (layers :any[][], initialWeightValue :number = 1) => {
     // ! The initialWeightValue is used to create a range between initialWeightValue and -initialWeightValue
-    // FIXME: The model hasnt any weights incorporated, nor relations about from where to take the values
     let model :any = {}
 
     // ? Handling input layer
@@ -217,7 +217,6 @@ let createModel = (layers :any[][], initialWeightValue :number) => {
         
         let lastLayerAmount :number;
         let layerConnections :number[][] = []; // ? This are the connections with last layer, will be pushed at the end
-        // FIXME: layerConnections MIGHT need to be 2D
         
         let propName = `layer${i}`; // ? The layer 0 is the input one
         model[propName] = [];
@@ -269,7 +268,7 @@ let createModel = (layers :any[][], initialWeightValue :number) => {
 
 // * ---------------------------------- MODEL CALCULATIONS ---------------------------------- Pensar qué nombre poner, es que lea las distintas cosas para funcionar
 
-const calculateNeurons = (model :any, inputs :number[]) => {
+const calculateNeurons = (model :any, inputs :number[], showData = false) => {
     if (!model.inputsAmount || !model.outputLayer || model.inputsAmount != inputs.length) { // ? Basic verifications
         return false;
     }
@@ -282,7 +281,7 @@ const calculateNeurons = (model :any, inputs :number[]) => {
 
     for (let layers = 1; layers <= totalLayers; layers ++) { // ? Iterates as many times as layers exist
         let layerNeurons = gModel[`layer${layers}Amount`];
-        let lastLayerNeurons;
+        let lastLayerNeurons: string;
         let layerTotalInputs :number[][] = []; // ? This variable is used for storing the total neuron input of all neurons 
 
         if (layers != 1) { // ? If this is not the first hidden layer, the last layer amount of neurons is defined as
@@ -290,22 +289,22 @@ const calculateNeurons = (model :any, inputs :number[]) => {
         } else { // ? If it is the first hidden layer, the amount is gModel.inputsAmount
             lastLayerNeurons = "inputs";
         }
+        
+        if (showData) console.log("\n-------- NEW LAYER --------\n")
 
-        // FIXME: console.log("\n-------- NEW LAYER --------\n")
-
-        // FIXME: console.log("Layer neurons: ", layerNeurons);
+        if (showData) console.log("Layer neurons: ", layerNeurons);
         for (let neuron = 0; neuron < layerNeurons; neuron ++) { // ? For each neuron in the layer
-            // FIXME: console.log("\nNeuron number ", neuron)
+            if (showData) console.log("\nNeuron number ", neuron)
             let totalNeuronInput :number[]= []; // ? Total values of the neuron, they are stored as an array because softmax requires an array, not a number
 
             let neuronConnections = gModel[`layer${layers}Connections`][neuron]
-            // FIXME: console.log("Neuron connections: ", neuronConnections);
-            // FIXME: console.log("LastLayerNeurons", lastLayerNeurons);
+            if (showData) console.log("Neuron connections: ", neuronConnections);
+            if (showData) console.log("LastLayerNeurons", lastLayerNeurons);
             
             // ? lln stands for last layer neuron
             for (let lln = 0; lln <= Number(gModel[`${lastLayerNeurons}Amount`]) - 1; lln ++) { // ? For each last layer neuron
-                // FIXME: console.log("Input value: ", gModel[`${lastLayerNeurons}`][lln])
-                // FIXME: console.log("Input weight: ", neuronConnections[lln]);
+                if (showData) console.log("Input value: ", gModel[`${lastLayerNeurons}`][lln])
+                if (showData) console.log("Input weight: ", neuronConnections[lln]);
                 totalNeuronInput.push(gModel[`${lastLayerNeurons}`][lln] * neuronConnections[lln]);
                 // ? Adds to the neuron total input the lln value multiplied by the weight
             }
@@ -314,10 +313,10 @@ const calculateNeurons = (model :any, inputs :number[]) => {
 
             layerTotalInputs.push(totalNeuronInput);
 
-            // FIXME: console.log("Neuron total input: ", totalNeuronInput);
+            if (showData) console.log("Neuron total input: ", totalNeuronInput);
         }
 
-        // FIXME: console.log("Layer total inputs: ", layerTotalInputs);
+        if (showData) console.log("Layer total inputs: ", layerTotalInputs);
 
         for (let tiv = 0; tiv < layerTotalInputs.length; tiv++) {
             gModel[`layer${layers}`].push(calculateNeuronValue(gModel[`layer${layers}Type`], layerTotalInputs[tiv]))
@@ -387,13 +386,18 @@ const meanSquaredError = (obtainedResults: number[], expectedResults: number[]) 
 
 const derMeanSquaredError = (obtainedResults: number[], expectedResults: number[]) => {
     let gradient: number[] = [];
+    let total = 0;
     for (let i = 0; i < obtainedResults.length; i++) {
-        gradient.push(2 * (obtainedResults[i] - expectedResults[i]) / obtainedResults.length);
+        // FIXME: Si obtainedResult es más chico, funciona 2 * (obtainedResults[i] - expectedResults[i])
+        // FIXME: Mientras que si obtainedResult es más grande, funciona (expectedResults[i] - obtainedResults[i])
+        // gradient.push(2 * (obtainedResults[i] - expectedResults[i]) / obtainedResults.length);
+        // gradient.push(2 * (obtainedResults[i] - expectedResults[i]))
+        gradient.push(2 * (expectedResults[i] - obtainedResults[i]))
     }
     return gradient;
 }
 
-const sgdOptimizer = (model: any, obtained: number[], expected: number[], learningRate) => {
+const sgdOptimizer = (model: any, obtained: number[], expected: number[], learningRate: number) => {
     // ? Copies the model
     let newModel = JSON.parse(JSON.stringify(model));
 
@@ -405,28 +409,28 @@ const sgdOptimizer = (model: any, obtained: number[], expected: number[], learni
     let errors: number[] = [];
     for (let i = 0; i < obtained.length; i++) {
         errors.push(expected[i] - obtained[i]);
-    }    
+    }
+
     let mseGradient = derMeanSquaredError(obtained, expected);
 
     // ? Output layer adjustment
 
     for (let neuron = 0; neuron < model[`${outputLayer}Amount`]; neuron++) { // ? For each neuron
-        for (let conn = 0; conn < model[`${outputLayer}}Connections`].length; conn++) { // ? For each connection
-            let currentWeight = model[`${outputLayer}Connections`][conn];
+        for (let conn = 0; conn < model[`${outputLayer}Connections`].length; conn++) { // ? For each connection
+            // ! let currentWeight = model[`${outputLayer}Connections`][conn];
+            let currentWeight = model[`${outputLayer}Connections`][neuron][conn]
 
-            let newWeight = currentWeight - errors[conn] * mseGradient[conn];
+            let newWeight = currentWeight - learningRate * errors[neuron] * mseGradient[conn];
 
-            newModel[`${outputLayer}Connections`][conn] = newWeight;
+            newModel[`${outputLayer}Connections`][neuron][conn] = newWeight;
         }
     }
-
+        
     // ? Hidden layers adjustment
     for (let layer = totalLayers - 1; layer >= 1; layer--) { // ? Will do all hidden layers except input
         let layerType = model[`layer${layer}Type`];
         let lastLayer = model[`layer${layer}LastLayer`];
         let layerConnections = model[`layer${layer}Connections`];
-        console.log("Layer type: ", layerType)
-        console.log("Last layer: ", lastLayer)
 
         for (let neuron = 0; neuron < model[`layer${layer}Amount`]; neuron++) { // ? For each neuron
             for (let conn = 0; conn < layerConnections[neuron].length; conn++) { // ? For each connection
@@ -449,7 +453,7 @@ const sgdOptimizer = (model: any, obtained: number[], expected: number[], learni
 
 // * ---------------------------------- EPOCHS ----------------------------------
 
-let epochs = (epochsAmount: number, model: object, trainData: number[][], trainResults: number[][], optimizer, mutationRate: number = 0.1, learningRate: number = 0.01) => {
+let epochs = (epochsAmount: number, model: object, trainData: number[][], trainResults: number[][], optimizer, learningRate: number = 0.01) => {
     let actualModel = model;
     
     for (let i = 1; i < epochsAmount + 1; i++) {
@@ -465,35 +469,29 @@ let epochs = (epochsAmount: number, model: object, trainData: number[][], trainR
             outputs.push(gModel[gModel.outputLayer]);
         }
 
-        console.log(`Epoch ${i}: `);
-        console.log(outputs)
+        console.log(`Epoch ${i}: ${outputs}`);
 
         for (let out = 0; out < outputs.length; out++) {
-            actualModel = JSON.parse(JSON.stringify(sgdOptimizer(actualModel, outputs[out], trainResults[out], learningRate)));
+            actualModel = JSON.parse(JSON.stringify(optimizer(actualModel, outputs[out], trainResults[out], learningRate)));
         }
         // actualModel = JSON.parse(JSON.stringify(dummyMutate(actualModel, mutationRate)));
     }
 }
 
 
-// * ---------------------------------- DECLARATIONS ----------------------------------
+// * ---------------------------------- DECLARATIONS AND TESTING ----------------------------------
 
-// let brainTest = createModel([["input", 2], ["relu", 2], ["sigmoid", 1]], 1)
-
-// let result = calculateNeurons(brainTest, [1, 0]);
-
-// let mutatedBrainTest = mutateBrain(brainTest, 0.1);
-
-// let trainData = [[1, 1], [1, 0], [0, 1], [0, 0]]
-// let trainResults = [[0], [0], [0], [1]]
-
-// epochs(5, brainTest, trainData, trainResults, mutateBrain, 300)
-
-let brainTest = createModel([["input", 2], ["relu", 2], ["sigmoid", 1]], 1);
+let brainTest = createModel([["input", 2], ["relu", 2], ["sigmoid", 1]], 1)
 
 console.log(brainTest)
 
-let trainData = [[1, 1], [1, 0], [0, 1], [0, 0]];
-let trainResults = [[1], [1], [1], [0]];
+// let trainData = [[1, 1], [1, 0], [0, 1], [0, 0]];
+// let trainResults = [[1], [0], [0], [0]];
 
-// epochs(70, brainTest, trainData, trainResults, sgdOptimizer, 0.1, 0.01);
+// let trainData = [[1, 1]];
+// let trainResults = [[0]];
+
+let trainData = [[1, 1]];
+let trainResults = [[1]];
+
+epochs(1000, brainTest, trainData, trainResults, sgdOptimizer, 5);
