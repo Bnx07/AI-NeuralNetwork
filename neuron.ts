@@ -387,12 +387,27 @@ const meanSquaredError = (obtainedResults: number[], expectedResults: number[]) 
 const derMeanSquaredError = (obtainedResults: number[], expectedResults: number[]) => {
     let gradient: number[] = [];
     let total = 0;
+
     for (let i = 0; i < obtainedResults.length; i++) {
+
+        // ! Cases
+        // • No gradient push is 0.5 for both 1 and 0 expected
+        // • gradient.push(2 * obtained - expected) is 0.5 for both 1 and 0 expected
+        // • gradient.push(2 * expected - obtained) is 0 for both 1 and 0 expected
+        // • gradient.push(2 * obtained - expected / obtained.length) is 1 for both 1 and 0 expected
+
+        // if (obtainedResults[i] > expectedResults[i]) gradient.push(2 * (obtainedResults[i] - expectedResults[i]))
+        // else gradient.push(2 * (expectedResults[i] - obtainedResults[i]))
+        if (expectedResults[i] > obtainedResults[i]) {
+            gradient.push(2 * (obtainedResults[i] - expectedResults[i]) / obtainedResults.length)
+        } else {
+            gradient.push(2 * (expectedResults[i] - obtainedResults[i]))
+        }
         // FIXME: Si obtainedResult es más chico, funciona 2 * (obtainedResults[i] - expectedResults[i])
         // FIXME: Mientras que si obtainedResult es más grande, funciona (expectedResults[i] - obtainedResults[i])
         // gradient.push(2 * (obtainedResults[i] - expectedResults[i]) / obtainedResults.length);
         // gradient.push(2 * (obtainedResults[i] - expectedResults[i]))
-        gradient.push(2 * (expectedResults[i] - obtainedResults[i]))
+        // gradient.push(2 * (expectedResults[i] - obtainedResults[i]))
     }
     return gradient;
 }
@@ -469,13 +484,16 @@ let epochs = (epochsAmount: number, model: object, trainData: number[][], trainR
             outputs.push(gModel[gModel.outputLayer]);
         }
 
-        console.log(`Epoch ${i}: ${outputs}`);
+        // TODO: console.log(`Epoch ${i}: ${outputs}`);
+        
+        if (i == epochsAmount) console.log(outputs)
 
         for (let out = 0; out < outputs.length; out++) {
             actualModel = JSON.parse(JSON.stringify(optimizer(actualModel, outputs[out], trainResults[out], learningRate)));
         }
         // actualModel = JSON.parse(JSON.stringify(dummyMutate(actualModel, mutationRate)));
     }
+
 }
 
 
@@ -491,7 +509,9 @@ console.log(brainTest)
 // let trainData = [[1, 1]];
 // let trainResults = [[0]];
 
-let trainData = [[1, 1]];
-let trainResults = [[1]];
+let trainData = [[1, 1], [0, 0]];
+let trainZero = [[0], [1]];
+let trainOnes = [[1], [0]];
 
-epochs(1000, brainTest, trainData, trainResults, sgdOptimizer, 5);
+epochs(1000, brainTest, trainData, trainZero, sgdOptimizer, 5);
+epochs(1000, brainTest, trainData, trainOnes, sgdOptimizer, 5);
