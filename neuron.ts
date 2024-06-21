@@ -271,7 +271,7 @@ let createModel = (layers :any[][], initialWeightValue :number = 1) => {
     return model;
 }
 
-// * ---------------------------------- MODEL CALCULATIONS ---------------------------------- Pensar qué nombre poner, es que lea las distintas cosas para funcionar
+// * ---------------------------------- MODEL CALCULATIONS ----------------------------------
 
 const calculateModel = (model :any, inputs :number[], showData = false) => {
     if (!model.inputsAmount || !model.outputLayer || model.inputsAmount != inputs.length) { // ? Basic verifications
@@ -349,10 +349,83 @@ const calculateModel = (model :any, inputs :number[], showData = false) => {
     return gModel;
 }
 
+// * ---------------------------------- WEIGHTS VARIATIONS (Random) ----------------------------------
+
+let mutateBrain = (model: any, randomRate: number, expectedResults = [], obtainedResults = []) => {
+    // ? Clones the model
+    let mutatedModel = JSON.parse(JSON.stringify(model));
+
+    // ? Iterates each layer
+    for (let i = 1; i <= Number(mutatedModel.outputLayer.slice(5)); i++) {
+        let layerConnections = mutatedModel[`layer${i}Connections`];
+        
+        // ? Iterates each neuron
+        for (let neuron = 0; neuron < layerConnections.length; neuron++) {
+            // ? Iterates each connection
+            for (let conn = 0; conn < layerConnections[neuron].length; conn++) {
+                // ? Mutates the weight
+                let weight = layerConnections[neuron][conn];
+                let mutation = (Math.random() * 2 * randomRate) - randomRate;
+                layerConnections[neuron][conn] = weight + mutation;
+            }
+        }
+    }
+
+    return mutatedModel;
+};
+
+let dummyOptimizer = (model: any, randomRate: any, expectedResults = [], obtainedResults = []) => {
+    return model
+}
+
+// * ---------------------------------- EPOCHS ----------------------------------
+
+let epochs = (epochsAmount: number, model: object, trainData: number[][], trainResults: number[][], optimizer, learningRate: number = 0.01, showEpochs: boolean = false, showDetailedEpochs: boolean = true) => {
+    let actualModel = model;
+    
+    for (let i = 1; i < epochsAmount + 1; i++) { // ? For each epoch
+        let outputs: number[][] = [];
+        
+        for (let j = 0; j < trainData.length; j++) { // ? For each train data
+            
+            let trainModel = JSON.parse(JSON.stringify(actualModel)); // ? Creates a copy of the model
+            trainModel.inputs = trainData[j];
+
+            let gModel = calculateModel(trainModel, trainData[j]); // ? Calculates the outputs based on the inputs
+
+            outputs.push(gModel[gModel.outputLayer]); // ? Pushes the outputs to a variable for further analysis later
+        }
+
+        if (showEpochs) {
+            if (showDetailedEpochs) console.log("Epoch ", i, ": ", outputs);
+            else {
+                // TODO: Make it calculate percentage
+                // console.log(`Epoch ${i}: ${percentage}`);
+                console.log(`Epoch ${i}: ${outputs}`);
+            }
+        } else if (!showEpochs && i == epochsAmount) console.log(`Epoch ${i}: ${outputs}`);
+
+        for (let out = 0; out < outputs.length; out++) { // ? For each output obtained, use the optimizer to train it
+            actualModel = JSON.parse(JSON.stringify(optimizer(actualModel, outputs[out], trainResults[out], learningRate)));
+        }
+        // actualModel = JSON.parse(JSON.stringify(dummyMutate(actualModel, mutationRate)));
+    }
+
+    return actualModel
+}
+
 // * ---------------------------------- DECLARATIONS AND TESTING ----------------------------------
 
 let brainTest = createModel([["input", 2], ["relu", 2], ["sigmoid", 1]], 1)
 
+let simpleTrainData = [[1,1]];
+let complexTrainData = [[1,1], [1,0], [0,1], [0,0]];
+
+let simpleOutData = [[1]];
+let complexOutData = [[1],[0], [0], [1]];
+
 console.log(brainTest)
 
-console.log(calculateModel(brainTest, [1, 1]))
+epochs(10, brainTest, simpleTrainData, simpleOutData, mutateBrain, 1, false)
+
+epochs(10, brainTest, complexTrainData, complexOutData, mutateBrain, 1, true)
