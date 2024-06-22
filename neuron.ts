@@ -89,7 +89,7 @@ const derSoftmax = (logits: number[]): number[] => {
 // * ---------------------------------- OPTIMIZERS ----------------------------------
 // ! Because of complexity, I'm using SGD (Stochastic Gradient Descent)
 
-// ' How it works
+// ' What they do
 // ? Optimizers will modify the weights and biases in order to make the AI more efficient
 
 // ' How it works detailed
@@ -97,6 +97,11 @@ const derSoftmax = (logits: number[]): number[] => {
 // ? The derivate of the loss function will tell the model in which direction and which magnitude the weights must be modified
 // ? Weigths will be updated in the direction of the negative gradient (The negative gradient will tell us the best direction to minimize error fast)
 // ? The weight will be modified doing newWeight = oldWeight - learningRate * gradient
+
+// ? For the rest of the network, the weights of the hidden layers will be updated based their derivates
+// ? For example, sigmoid neurons will use the sigmoid derivate for calculating the gradient, and will be modified based on the next layer error
+// ? In other words, the sigmoid neuron will be modified doing newWeight = oldWeight - learningRate * gradient * nextLayerNeuronError
+// TODO: Search with more details to see how this works, but this is the basic idea
 
 // ' Hyperparameters
 // • Learning Rate: How much the weights are modified, a learning rate of 0.1 means the weight will be modified up to a 10% 
@@ -170,31 +175,31 @@ const calculateNeuronValue = (activation: string, values: number[], showResult =
     return result;
 }
 
-const calculateDerivateValue = (activation: string, values: number[], showResult = false) :number => {
+const calculateDerivateValue = (activation: string, value: number, showResult = false) :number => {
 
     // ! THE FUNCTION ISNT WORKING PROPERLY
 
     let result; // FIXME: This is supposed to be result: number | number[] but it crashes I dont know why
     switch (activation) {
         case "relu":
-            result = derRelu(unifyValues(values));
+            result = derRelu(value);
             console.log(result)
             break;
         case "leakyrelu":
-            result = derLeakyrelu(unifyValues(values));
+            result = derLeakyrelu(value);
             break;
         case "sigmoid":
-            result = derSigmoid(unifyValues(values));
+            result = derSigmoid(value);
             console.log(result)
             break;
         case "softmax": // ! I dont know how to do with this, softmax recieves an array instead of a value
             //  TODO: result = derSoftmax(values);
             break;
         case "tanh":
-            result = derTanh(unifyValues(values))
+            result = derTanh(value)
             break;
         case "linear":
-            result = derLinear(unifyValues(values))
+            result = derLinear(value)
             break;
         default:
             result = 0;
@@ -214,8 +219,6 @@ let createModel = (layers :any[][], initialWeightValue :number = 1) => {
     // ? Handling input layer
     model.inputs = [];
     model.inputsAmount = layers[0][1];
-
-    model.lastLayerNeurons = 0;
 
     // ? Handling hidden layers
     for (let i = 1; i < layers.length; i++) { // ? Iterate over layers except the input one (Thats why it starts as 1)
@@ -349,11 +352,52 @@ const calculateModel = (model :any, inputs :number[], showData = false) => {
     return gModel;
 }
 
+// * ---------------------------------- ERROR FUNCTIONS ----------------------------------
+
+const meanSquaredError = (obtainedResults: number[], expectedResults: number[]) => {
+    // ? Sumatory of (expected - obtained) squared and divided by the amount of values
+    let total = 0;
+    for (let i = 0; i < obtainedResults.length; i++) {
+        total += Math.pow((expectedResults[i] - obtainedResults[i]), 2);
+    }
+    return total/expectedResults.length;
+}
+
+const derMeanSquaredError = (obtainedResults: number[], expectedResults: number[]): number[] => {
+    let gradient: number[] = [];
+    let total = 0;
+
+    for (let i = 0; i < obtainedResults.length; i++) {
+
+        // ! Cases
+        // • No gradient push is 0.5 for both 1 and 0 expected
+        // • gradient.push(2 * obtained - expected) is 0.5 for both 1 and 0 expected
+        // • gradient.push(2 * expected - obtained) is 0 for both 1 and 0 expected
+        // • gradient.push(2 * obtained - expected / obtained.length) is 1 for both 1 and 0 expected
+
+        // if (obtainedResults[i] > expectedResults[i]) gradient.push(2 * (obtainedResults[i] - expectedResults[i]))
+        // else gradient.push(2 * (expectedResults[i] - obtainedResults[i]))
+
+        // ' Theoretically it can also be obtained[i] - expected[i]
+
+        if (expectedResults[i] > obtainedResults[i]) {
+            gradient.push(2 * (obtainedResults[i] - expectedResults[i]) / obtainedResults.length)
+        } else {
+            gradient.push(2 * (expectedResults[i] - obtainedResults[i]))
+        }
+        // FIXME: Si obtainedResult es más chico, funciona 2 * (obtainedResults[i] - expectedResults[i])
+        // FIXME: Mientras que si obtainedResult es más grande, funciona (expectedResults[i] - obtainedResults[i])
+        // gradient.push(2 * (obtainedResults[i] - expectedResults[i]) / obtainedResults.length);
+        // gradient.push(2 * (obtainedResults[i] - expectedResults[i]))
+        // gradient.push(2 * (expectedResults[i] - obtainedResults[i]))
+    }
+    return gradient;
+}
+
 // * ---------------------------------- WEIGHTS VARIATIONS (Random) ----------------------------------
 
 let mutateBrain = (model: any, randomRate: number, expectedResults = [], obtainedResults = []) => {
-    // ? Clones the model
-    let mutatedModel = JSON.parse(JSON.stringify(model));
+    let mutatedModel = JSON.parse(JSON.stringify(model)); // ? Clones the model
 
     // ? Iterates each layer
     for (let i = 1; i <= Number(mutatedModel.outputLayer.slice(5)); i++) {
@@ -378,15 +422,175 @@ let dummyOptimizer = (model: any, randomRate: any, expectedResults = [], obtaine
     return model
 }
 
+// * ---------------------------------- OPTIMIZER ----------------------------------
+
+// const sgdOptimizer = (model: any, obtained: number[], expected: number[], learningRate: number) => {
+//     // ? Copies the model
+//     let newModel = JSON.parse(JSON.stringify(model));
+
+//     // ? Obtains the output layer
+//     let outputLayer = model.outputLayer;
+//     let totalLayers = Number(outputLayer.slice(5));
+
+//     // ? Calculates the error and the derivate of the MSE
+//     let outputErrors: number[] = [];
+//     for (let i = 0; i < obtained.length; i++) {
+//         outputErrors.push(expected[i] - obtained[i]);
+//     }
+
+//     let mseGradient = derMeanSquaredError(obtained, expected);
+
+//     // ? Output layer adjustment
+    
+//     for (let neuron = 0; neuron < model[`${outputLayer}Amount`]; neuron++) { // ? For each neuron
+//         for (let conn = 0; conn < model[`${outputLayer}Connections`].length; conn++) { // ? For each connection
+//             // ! let currentWeight = model[`${outputLayer}Connections`][conn];
+//             let currentWeight = model[`${outputLayer}Connections`][neuron][conn] // ? Obtains the weight
+
+//             // ? Original code
+//             // // let newWeight = currentWeight - learningRate * errors[neuron] * mseGradient[conn]; 
+
+//             // ? Recommended code
+//             // // let newWeight = currentWeight - learningRate * outputErrors[neuron] * obtained[neuron];
+
+//             // ? Used code
+//             let newWeight = currentWeight - learningRate * outputErrors[neuron] * mseGradient[conn];
+
+//             newModel[`${outputLayer}Connections`][neuron][conn] = newWeight;
+//         }
+//     }
+
+//     let errors = outputErrors;
+        
+//     // ? Hidden layers adjustment
+//     for (let layer = totalLayers - 1; layer >= 1; layer--) { // ? Will do all hidden layers except input and output
+        
+//         // * A lot of variables I will need eventually
+//         let layerType = model[`layer${layer}Type`];
+//         let lastLayer = model[`layer${layer}LastLayer`];
+//         let layerConnections = model[`layer${layer}Connections`];
+//         let nextLayer = model[`layer${layer + 1}`];
+//         let nextLayerConnections = model[`layer${layer + 1}Connections`];
+//         let nextLayerType = model[`layer${layer + 1}Type`];
+
+//         // ? Initialize layer errors array with zeros
+//         let layerErrors: number[] = [];
+//         for (let i = 0; i < model[`layer${layer}Amount`]; i++) {
+//             layerErrors.push(0);
+//         }
+
+//         // ? Calculate errors for the current hidden layer
+//         for (let neuron = 0; neuron < model[`layer${layer + 1}Amount`]; neuron++) {
+//             for (let conn = 0; conn < nextLayerConnections[neuron].length; conn++) {
+//                 console.log(nextLayer)
+//                 // FIXME: This is a possible error, the derivateValue is with the nextLayerConnection of a neuron
+//                 // TODO: Maybe understanding better what is this supposed to do, its easier to fix
+//                 layerErrors[conn] += errors[neuron] * nextLayer[neuron] * calculateDerivateValue(nextLayerType, nextLayerConnections[neuron]);
+//                 let currentConnIndex = nextLayerConnections[neuron][conn];
+//                 // FIXME: Now is with the nextLayerConnection of a neuron's connection
+//                 // TODO: Maybe understanding better what is this supposed to do, its easier to fix
+//                 let errorContribution = errors[neuron] * calculateDerivateValue(nextLayerType, nextLayerConnections[neuron][conn]);
+//                 layerErrors[currentConnIndex] += errorContribution;
+//             }
+//         }
+
+//         // ? Calculates new weight considering errors
+//         for (let neuron = 0; neuron < model[`layer${layer}Amount`]; neuron++) {
+//             // FIXME: Everything related to this code returns null, is completely broken
+//             for (let conn = 0; conn < layerConnections[neuron].length; conn++) {
+                
+//                 console.log(`Layer ${layer}; LayerType ${layerType}; Neuron ${neuron}; Connection ${conn}`)
+//                 let currentWeight = model[`layer${layer}Connections`][neuron][conn];
+
+//                 // FIXME: At this point, neuron error is already null
+//                 console.log(`Error ${layerErrors[neuron]}`)
+//                 //console.log(`Last layer connection? ${model[`layer${layer - 1}`][conn]}`)
+//                 // FIXME: calculates using its initial connections and the layer error of the neuron
+//                 let newWeight = currentWeight - learningRate * layerErrors[neuron] * model[`layer${layer}Connections`][neuron][conn];
+
+//                 console.log(`Current weight ${currentWeight}`)
+//                 console.log(`New weigth ${newWeight}`)
+
+//                 newModel[`layer${layer}Connections`][neuron][conn] = newWeight;
+//             }
+//         }
+
+//         errors = layerErrors;  // Update errors for the next layer backpropagation
+//     }
+
+//     return newModel
+// }
+
+const sgdOptimizer = (model: any, obtained: number[], expected: number[], learningRate: number) => {
+    let newModel = JSON.parse(JSON.stringify(model));
+
+    // ? Obtains the output layer
+    let outputLayer = model.outputLayer;
+    let totalLayers = Number(outputLayer.slice(5));
+
+    // ? Calculates the error and the derivate of the MSE
+    let outputErrors: number[] = [];
+    for (let i = 0; i < obtained.length; i++) {
+        outputErrors.push(expected[i] - obtained[i]);
+    }
+
+    let mseGradient = derMeanSquaredError(obtained, expected);
+
+    // ' Output layer weigths adjustment
+    let outputLastLayer = model[`${outputLayer}LastLayer`]
+    
+    for (var neuron = 0; neuron < model[`${outputLayer}Amount`]; neuron++) { // ? For each neuron
+        for (var conn = 0; conn < model[`${outputLastLayer}Amount`]; conn++) {
+
+            let oldWeight = model[`${outputLayer}Connections`][neuron][conn]; // ? Obtains the weight the connection used to have
+            let neuronGradient = mseGradient[neuron]; // ? Obtains the gradient with the derivate of MSE in relation to the neuron
+            let activationDerivate = calculateDerivateValue(model[`${outputLayer}Type`], model[`${outputLayer}`][neuron]); // ? Calculates the derivate of the neuron
+
+            let newWeight = oldWeight - learningRate * neuronGradient * activationDerivate;
+
+            newModel[`${outputLayer}Connections`][neuron][conn] = newWeight;
+        }
+    }
+
+    // ' Hidden layers
+
+    let lastLayerErrors: number[] = outputErrors;
+
+    for (var layer = 1; layer < totalLayers; layer++) {
+        let lastLayerAmount: number = model[`layer${layer + 1}Amount`];
+
+        let layerValues: number[] = model[`layer${layer}`];
+        let layerAmount: number = model[`layer${layer}Amount`];
+        let layerConnec: number[] = model[`layer${layer}Connections`];
+        let layerType: string = model[`layer${layer}Type`]
+
+        let layerErrors: number[] = []; // ? Will modify lastLayerErrors for backpropagation
+
+        for (var neuron = 0; neuron < layerAmount; neuron++) {
+            for (var conn = 0; conn < lastLayerAmount; conn++) {
+                let oldWeight = layerConnec[neuron][conn];
+                let neuronGradient = lastLayerErrors[conn];
+                let activationDerivate = calculateDerivateValue(layerType, layerValues[neuron]);
+
+                // TODO: ESTA INCOMPLETO PERO YA NO ME DA LA CABEZA
+
+                let newWeight = oldWeight - neuronGradient * activationDerivate * oldWeight * layerValues[neuron]
+            }
+        }
+    }
+}
+
 // * ---------------------------------- EPOCHS ----------------------------------
 
 let epochs = (epochsAmount: number, model: object, trainData: number[][], trainResults: number[][], optimizer, learningRate: number = 0.01, showEpochs: boolean = false, showDetailedEpochs: boolean = true) => {
     let actualModel = model;
     
-    for (let i = 1; i < epochsAmount + 1; i++) { // ? For each epoch
+    // ? For each epoch
+    for (let i = 1; i < epochsAmount + 1; i++) {
         let outputs: number[][] = [];
         
-        for (let j = 0; j < trainData.length; j++) { // ? For each train data
+        // ? For each train data
+        for (let j = 0; j < trainData.length; j++) { 
             
             let trainModel = JSON.parse(JSON.stringify(actualModel)); // ? Creates a copy of the model
             trainModel.inputs = trainData[j];
@@ -405,7 +609,8 @@ let epochs = (epochsAmount: number, model: object, trainData: number[][], trainR
             }
         } else if (!showEpochs && i == epochsAmount) console.log(`Epoch ${i}: ${outputs}`);
 
-        for (let out = 0; out < outputs.length; out++) { // ? For each output obtained, use the optimizer to train it
+        // ? For each output obtained, use the optimizer to train it
+        for (let out = 0; out < outputs.length; out++) { 
             actualModel = JSON.parse(JSON.stringify(optimizer(actualModel, outputs[out], trainResults[out], learningRate)));
         }
         // actualModel = JSON.parse(JSON.stringify(dummyMutate(actualModel, mutationRate)));
