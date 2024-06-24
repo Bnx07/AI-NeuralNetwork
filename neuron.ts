@@ -5,6 +5,7 @@
 // ? Neurons
 
 const sigmoid = (x: number) :number => {
+    // console.log("Param: ", x)
     return 1 / (1 + Math.exp(-x));
 }
 
@@ -101,7 +102,6 @@ const derSoftmax = (logits: number[]): number[] => {
 // ? For the rest of the network, the weights of the hidden layers will be updated based their derivates
 // ? For example, sigmoid neurons will use the sigmoid derivate for calculating the gradient, and will be modified based on the next layer error
 // ? In other words, the sigmoid neuron will be modified doing newWeight = oldWeight - learningRate * gradient * nextLayerNeuronError
-// TODO: Search with more details to see how this works, but this is the basic idea
 
 // ' Hyperparameters
 // • Learning Rate: How much the weights are modified, a learning rate of 0.1 means the weight will be modified up to a 10% 
@@ -157,6 +157,7 @@ const calculateNeuronValue = (activation: string, values: number[], showResult =
             result = leakyrelu(unifyValues(values))
             break;
         case "sigmoid":
+            // console.log("Values: ", values)
             result = sigmoid(unifyValues(values));
             break;
         case "softmax": // ! I dont know how to do with this, softmax recieves an array instead of a value
@@ -483,12 +484,12 @@ let dummyOptimizer = (model: any, randomRate: any, expectedResults = [], obtaine
 //         for (let neuron = 0; neuron < model[`layer${layer + 1}Amount`]; neuron++) {
 //             for (let conn = 0; conn < nextLayerConnections[neuron].length; conn++) {
 //                 console.log(nextLayer)
-//                 // FIXME: This is a possible error, the derivateValue is with the nextLayerConnection of a neuron
-//                 // TODO: Maybe understanding better what is this supposed to do, its easier to fix
+//                 // FIX ME: This is a possible error, the derivateValue is with the nextLayerConnection of a neuron
+//                 // TO DO: Maybe understanding better what is this supposed to do, its easier to fix
 //                 layerErrors[conn] += errors[neuron] * nextLayer[neuron] * calculateDerivateValue(nextLayerType, nextLayerConnections[neuron]);
 //                 let currentConnIndex = nextLayerConnections[neuron][conn];
-//                 // FIXME: Now is with the nextLayerConnection of a neuron's connection
-//                 // TODO: Maybe understanding better what is this supposed to do, its easier to fix
+//                 // FIX ME: Now is with the nextLayerConnection of a neuron's connection
+//                 // TO DO: Maybe understanding better what is this supposed to do, its easier to fix
 //                 let errorContribution = errors[neuron] * calculateDerivateValue(nextLayerType, nextLayerConnections[neuron][conn]);
 //                 layerErrors[currentConnIndex] += errorContribution;
 //             }
@@ -496,16 +497,16 @@ let dummyOptimizer = (model: any, randomRate: any, expectedResults = [], obtaine
 
 //         // ? Calculates new weight considering errors
 //         for (let neuron = 0; neuron < model[`layer${layer}Amount`]; neuron++) {
-//             // FIXME: Everything related to this code returns null, is completely broken
+//             // FIX ME: Everything related to this code returns null, is completely broken
 //             for (let conn = 0; conn < layerConnections[neuron].length; conn++) {
                 
 //                 console.log(`Layer ${layer}; LayerType ${layerType}; Neuron ${neuron}; Connection ${conn}`)
 //                 let currentWeight = model[`layer${layer}Connections`][neuron][conn];
 
-//                 // FIXME: At this point, neuron error is already null
+//                 // FIX ME: At this point, neuron error is already null
 //                 console.log(`Error ${layerErrors[neuron]}`)
 //                 //console.log(`Last layer connection? ${model[`layer${layer - 1}`][conn]}`)
-//                 // FIXME: calculates using its initial connections and the layer error of the neuron
+//                 // FIX ME: calculates using its initial connections and the layer error of the neuron
 //                 let newWeight = currentWeight - learningRate * layerErrors[neuron] * model[`layer${layer}Connections`][neuron][conn];
 
 //                 console.log(`Current weight ${currentWeight}`)
@@ -539,12 +540,23 @@ const sgdOptimizer = (model: any, obtained: number[], expected: number[], learni
     // ' Output layer weigths adjustment
     let outputLastLayer = model[`${outputLayer}LastLayer`]
     
+    // // console.log("outputLayer: ", outputLayer)
+
     for (var neuron = 0; neuron < model[`${outputLayer}Amount`]; neuron++) { // ? For each neuron
         for (var conn = 0; conn < model[`${outputLastLayer}Amount`]; conn++) {
 
             let oldWeight = model[`${outputLayer}Connections`][neuron][conn]; // ? Obtains the weight the connection used to have
             let neuronGradient = mseGradient[neuron]; // ? Obtains the gradient with the derivate of MSE in relation to the neuron
-            let activationDerivate = calculateDerivateValue(model[`${outputLayer}Type`], model[`${outputLayer}`][neuron]); // ? Calculates the derivate of the neuron
+            
+            // // console.log("OutputType: ", model[`${outputLayer}Type`])
+
+            // // console.log("Obtained val: ", obtained[neuron])
+
+            let activationDerivate = calculateDerivateValue(model[`${outputLayer}Type`], obtained[neuron]); // ? Calculates the derivate of the neuron
+            
+            // // console.log("oldWeight: ", oldWeight);
+            // // console.log("neuronGradient: ", oldWeight);
+            // // console.log("activationDerivate: ", oldWeight);
 
             let newWeight = oldWeight - learningRate * neuronGradient * activationDerivate;
 
@@ -556,7 +568,7 @@ const sgdOptimizer = (model: any, obtained: number[], expected: number[], learni
 
     let lastLayerErrors: number[] = outputErrors;
 
-    for (var layer = 1; layer < totalLayers; layer++) {
+    for (var layer = totalLayers - 1; layer > 0; layer--) {
         let lastLayerAmount: number = model[`layer${layer + 1}Amount`];
 
         let layerValues: number[] = model[`layer${layer}`];
@@ -567,17 +579,41 @@ const sgdOptimizer = (model: any, obtained: number[], expected: number[], learni
         let layerErrors: number[] = []; // ? Will modify lastLayerErrors for backpropagation
 
         for (var neuron = 0; neuron < layerAmount; neuron++) {
-            for (var conn = 0; conn < lastLayerAmount; conn++) {
-                let oldWeight = layerConnec[neuron][conn];
-                let neuronGradient = lastLayerErrors[conn];
-                let activationDerivate = calculateDerivateValue(layerType, layerValues[neuron]);
+            let neuronError = 0
+            let activationDerivate = calculateDerivateValue(layerType, layerValues[neuron]); // ? Calculates the value of the derivate
 
-                // TODO: ESTA INCOMPLETO PERO YA NO ME DA LA CABEZA
+            for (var conn = 0; conn <= lastLayerAmount; conn++) {
+
+                console.log(`Neuron ${neuron} | Connection ${conn}`)
+
+                // ? Calculates the new weight for the connection
+                let oldWeight = layerConnec[neuron][conn];
+                let neuronGradient = lastLayerErrors[conn]; // ? Error of the last layer neuron
+                
+                console.log("OldWeight: ", oldWeight);
+                console.log("NGradient: ", neuronGradient);
+
+                // FIXME: Esto no existe xD
+                console.log("Lay Value: ", layerValues[neuron]);
 
                 let newWeight = oldWeight - neuronGradient * activationDerivate * oldWeight * layerValues[neuron]
+
+                newModel[`layer${layer}Connections`][neuron][conn] = newWeight
+                
+                // ? Calculates the partial neuron error
+                neuronError += lastLayerErrors[conn] * oldWeight
             }
+
+            // ? Pushes the total neuron error 
+            layerErrors.push(neuronError * activationDerivate)
         }
+
+        lastLayerErrors = layerErrors;
     }
+
+    console.log(newModel)
+
+    return newModel
 }
 
 // * ---------------------------------- EPOCHS ----------------------------------
@@ -631,6 +667,10 @@ let complexOutData = [[1],[0], [0], [1]];
 
 console.log(brainTest)
 
-epochs(10, brainTest, simpleTrainData, simpleOutData, mutateBrain, 1, false)
+// console.log(sigmoid(36))
 
-epochs(10, brainTest, complexTrainData, complexOutData, mutateBrain, 1, true)
+// epochs(10, brainTest, simpleTrainData, simpleOutData, mutateBrain, 1, true)
+
+epochs(1, brainTest, simpleTrainData, simpleOutData, sgdOptimizer, 0.1, true)
+
+// epochs(10, brainTest, complexTrainData, complexOutData, mutateBrain, 1, false)
