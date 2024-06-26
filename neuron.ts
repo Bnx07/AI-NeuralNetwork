@@ -522,28 +522,41 @@ let dummyOptimizer = (model: any, randomRate: any, expectedResults = [], obtaine
 //     return newModel
 // }
 
-const sgdOptimizer = (model: any, obtained: number[], expected: number[], learningRate: number) => {
-    let newModel = JSON.parse(JSON.stringify(model));
+const sgdOptimizer = (model: any, expected: number[], learningRate: number) => {
+        
+    // ? Obtains the output layer and total amount of layers
+    let outputLayer: string = model.outputLayer;
+    let totalLayers: number = Number(outputLayer.slice(5));
 
-    // ? Obtains the output layer
-    let outputLayer = model.outputLayer;
-    let totalLayers = Number(outputLayer.slice(5));
+    // ? Obtains the values of all hidden layers (From last to first) and output layer
+    let modelValues: number[][] = [];
+    let obtained: number[] = model[outputLayer];
+
+    // ? Deletes the stored values of each hidden layer and output layer
+    model[outputLayer] = [];
+    for (var layer = totalLayers - 1; layer > 0; layer--) {
+        modelValues.push(model[`layer${layer}`]);
+        model[`layer${layer}`] = [];
+    }
+    
+    let newModel: any = JSON.parse(JSON.stringify(model)); // ? Copies the model 
+
+    // // return newModel
 
     // ? Calculates the error and the derivate of the MSE
     let outputErrors: number[] = [];
     for (let i = 0; i < obtained.length; i++) {
         outputErrors.push(expected[i] - obtained[i]);
     }
-
     let mseGradient = derMeanSquaredError(obtained, expected);
 
     // ' Output layer weigths adjustment
+
     let outputLastLayer = model[`${outputLayer}LastLayer`]
-    
     // // console.log("outputLayer: ", outputLayer)
 
     for (var neuron = 0; neuron < model[`${outputLayer}Amount`]; neuron++) { // ? For each neuron
-        for (var conn = 0; conn < model[`${outputLastLayer}Amount`]; conn++) {
+        for (var conn = 0; conn < model[`${outputLastLayer}Amount`]; conn++) { // ? For each connection
 
             let oldWeight = model[`${outputLayer}Connections`][neuron][conn]; // ? Obtains the weight the connection used to have
             let neuronGradient = mseGradient[neuron]; // ? Obtains the gradient with the derivate of MSE in relation to the neuron
@@ -572,6 +585,7 @@ const sgdOptimizer = (model: any, obtained: number[], expected: number[], learni
         let lastLayerAmount: number = model[`layer${layer + 1}Amount`];
 
         let layerValues: number[] = model[`layer${layer}`];
+        // let layerValues: number[] = usedModel[`layer${layer}`];
         let layerAmount: number = model[`layer${layer}Amount`];
         let layerConnec: number[] = model[`layer${layer}Connections`];
         let layerType: string = model[`layer${layer}Type`]
@@ -584,16 +598,22 @@ const sgdOptimizer = (model: any, obtained: number[], expected: number[], learni
 
             for (var conn = 0; conn <= lastLayerAmount; conn++) {
 
+                // FIXME: Theres a concept error here, where it uses the lastLayerAmount, when in reality it needs the previous layer for iterating, as the weights are related to the previous layer
+
                 console.log(`Neuron ${neuron} | Connection ${conn}`)
 
                 // ? Calculates the new weight for the connection
                 let oldWeight = layerConnec[neuron][conn];
+
+                console.log(": ", lastLayerErrors)
+
                 let neuronGradient = lastLayerErrors[conn]; // ? Error of the last layer neuron
-                
+
                 console.log("OldWeight: ", oldWeight);
+
                 console.log("NGradient: ", neuronGradient);
 
-                // FIXME: Esto no existe xD
+                // FIXME: Esto no existe si no incluyo un "UsedModel"
                 console.log("Lay Value: ", layerValues[neuron]);
 
                 let newWeight = oldWeight - neuronGradient * activationDerivate * oldWeight * layerValues[neuron]
@@ -626,6 +646,9 @@ let epochs = (epochsAmount: number, model: object, trainData: number[][], trainR
         let outputs: number[][] = [];
         
         // ? For each train data
+
+        let usedModel;
+
         for (let j = 0; j < trainData.length; j++) { 
             
             let trainModel = JSON.parse(JSON.stringify(actualModel)); // ? Creates a copy of the model
@@ -634,6 +657,8 @@ let epochs = (epochsAmount: number, model: object, trainData: number[][], trainR
             let gModel = calculateModel(trainModel, trainData[j]); // ? Calculates the outputs based on the inputs
 
             outputs.push(gModel[gModel.outputLayer]); // ? Pushes the outputs to a variable for further analysis later
+
+            usedModel = gModel
         }
 
         if (showEpochs) {
@@ -647,7 +672,7 @@ let epochs = (epochsAmount: number, model: object, trainData: number[][], trainR
 
         // ? For each output obtained, use the optimizer to train it
         for (let out = 0; out < outputs.length; out++) { 
-            actualModel = JSON.parse(JSON.stringify(optimizer(actualModel, outputs[out], trainResults[out], learningRate)));
+            actualModel = JSON.parse(JSON.stringify(optimizer(actualModel, outputs[out], trainResults[out], learningRate, usedModel)));
         }
         // actualModel = JSON.parse(JSON.stringify(dummyMutate(actualModel, mutationRate)));
     }
@@ -657,7 +682,7 @@ let epochs = (epochsAmount: number, model: object, trainData: number[][], trainR
 
 // * ---------------------------------- DECLARATIONS AND TESTING ----------------------------------
 
-let brainTest = createModel([["input", 2], ["relu", 2], ["sigmoid", 1]], 1)
+let brainTest = createModel([["input", 2], ["relu", 2], ["relu", 4], ["sigmoid", 1]], 1)
 
 let simpleTrainData = [[1,1]];
 let complexTrainData = [[1,1], [1,0], [0,1], [0,0]];
@@ -665,12 +690,16 @@ let complexTrainData = [[1,1], [1,0], [0,1], [0,0]];
 let simpleOutData = [[1]];
 let complexOutData = [[1],[0], [0], [1]];
 
-console.log(brainTest)
+// console.log(brainTest)
 
 // console.log(sigmoid(36))
 
+let calculatedModel = calculateModel(brainTest, [1, 1])
+
 // epochs(10, brainTest, simpleTrainData, simpleOutData, mutateBrain, 1, true)
 
-epochs(1, brainTest, simpleTrainData, simpleOutData, sgdOptimizer, 0.1, true)
+console.log(sgdOptimizer(calculatedModel, simpleOutData[0], 0.1))
+
+// epochs(1, brainTest, simpleTrainData, simpleOutData, sgdOptimizer, 0.1, true)
 
 // epochs(10, brainTest, complexTrainData, complexOutData, mutateBrain, 1, false)
