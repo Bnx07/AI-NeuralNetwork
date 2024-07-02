@@ -35,8 +35,8 @@ const softmax = (logits :number[]) :number[] => { // ? This is e elevated to xi 
 
 // * ---------------------------------- DERIVATES OF NEURON TYPES ----------------------------------
 
-const derSigmoid = (x: number) => { // FIXME: THIS ISNT CORRECT
-    let top = -Math.exp(-x);
+const derSigmoid = (x: number) => {
+    let top = Math.exp(-x);
     let bottom = Math.pow(1+Math.exp(-x), 2);
     return top/bottom;
 }
@@ -51,10 +51,9 @@ const derLeakyrelu = (x: number) => {
     else return 0.01;
 }
 
-const derTanh = (x: number) => { // FIXME: THIS ISNT CORRECT
-    let top = 4 * Math.exp(2*x);
-    let bottom = Math.pow(Math.exp(2*x) + 1, 2);
-    return top/bottom;
+const derTanh = (x: number) => {
+    const tanhValue = tanh(x);
+    return 1 - Math.pow(tanhValue, 2);
 }
 
 const derLinear = (x: number) => {
@@ -614,6 +613,6 @@ let complexOutData = [[1],[0], [0], [1]];
 
 // console.log(test[test.outputLayer])
 
-let test = epochs(200, brainTest, simpleTrainData, simpleOutData, sgdOptimizer, 0.01, false) // ? A veces es 0.5 y a veces es muy cercano a 0
+let test = epochs(2000, brainTest, simpleTrainData, simpleOutData, sgdOptimizer, 0.01, false) // ? A veces es 0.5 y a veces es muy cercano a 0
 
 console.log(test)
