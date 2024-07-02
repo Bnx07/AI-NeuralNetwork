@@ -35,7 +35,7 @@ const softmax = (logits :number[]) :number[] => { // ? This is e elevated to xi 
 
 // * ---------------------------------- DERIVATES OF NEURON TYPES ----------------------------------
 
-const derSigmoid = (x: number) => {
+const derSigmoid = (x: number) => { // FIXME: THIS ISNT CORRECT
     let top = -Math.exp(-x);
     let bottom = Math.pow(1+Math.exp(-x), 2);
     return top/bottom;
@@ -51,7 +51,7 @@ const derLeakyrelu = (x: number) => {
     else return 0.01;
 }
 
-const derTanh = (x: number) => {
+const derTanh = (x: number) => { // FIXME: THIS ISNT CORRECT
     let top = 4 * Math.exp(2*x);
     let bottom = Math.pow(Math.exp(2*x) + 1, 2);
     return top/bottom;
@@ -362,7 +362,7 @@ const meanSquaredError = (obtainedResults: number[], expectedResults: number[]) 
     return total/expectedResults.length;
 }
 
-// TODO: NO ESTOY SEGURO DE QUE SEA ASI
+// TODO: NO ESTOY SEGURO DE QUE SEA ASI LA DERIVADA DEL ERROR MEDIO CUADRADO
 const derMeanSquaredError = (obtainedResults: number[], expectedResults: number[]): number[] => {
     let gradient: number[] = [];
     let total = 0;
@@ -424,9 +424,9 @@ let dummyOptimizer = (model: any, randomRate: any, expectedResults = [], obtaine
 
 // * ---------------------------------- OPTIMIZER ----------------------------------
 
-const sgdOptimizer = (model: any, expected: number[], learningRate: number) => {
+const sgdOptimizer = (model: any, expected: number[], learningRate: number, showData: boolean = false) => {
     
-    console.log(model)
+    if (showData) console.log(model)
 
     // ? Obtains the output layer and total amount of layers
     let outputLayer: string = model.outputLayer;
@@ -456,9 +456,9 @@ const sgdOptimizer = (model: any, expected: number[], learningRate: number) => {
 
     let outputLastLayer = model[`${outputLayer}LastLayer`]
 
-    // console.log("");
-    // console.log(`-=-=-=-= OUTPUT LAYER =-=-=-=- `);
-    // console.log("");
+    if (showData) console.log("");
+    if (showData) console.log(`-=-=-=-= OUTPUT LAYER =-=-=-=- `);
+    if (showData) console.log("");
 
     for (var neuron = 0; neuron < model[`${outputLayer}Amount`]; neuron++) { // ? For each neuron
         for (var conn = 0; conn < model[`${outputLastLayer}Amount`]; conn++) { // ? For each connection
@@ -466,19 +466,19 @@ const sgdOptimizer = (model: any, expected: number[], learningRate: number) => {
             let oldWeight = model[`${outputLayer}Connections`][neuron][conn]; // ? Obtains the weight the connection used to have
             let neuronGradient = mseGradient[neuron]; // ? Obtains the gradient with the derivate of MSE in relation to the neuron
             
-            // console.log(`Neuron ${neuron} | Connection ${conn}`)
-            // console.log("---> OutputType: ", model[`${outputLayer}Type`])
-            // console.log("---> Obtained val: ", obtained[neuron])
+            if (showData) console.log(`Neuron ${neuron} | Connection ${conn}`)
+            if (showData) console.log("---> OutputType: ", model[`${outputLayer}Type`])
+            if (showData) console.log("---> Obtained val: ", obtained[neuron])
 // 
             let activationDerivate = calculateDerivateValue(model[`${outputLayer}Type`], obtained[neuron]); // ? Calculates the derivate of the neuron
             
-            // console.log("---> oldWeight: ", oldWeight);
-            // console.log("---> neuronGradient: ", oldWeight);
-            // console.log("---> activationDerivate: ", oldWeight);
+            if (showData) console.log("---> oldWeight: ", oldWeight);
+            if (showData) console.log("---> neuronGradient: ", oldWeight);
+            if (showData) console.log("---> activationDerivate: ", oldWeight);
 
             let newWeight = oldWeight - learningRate * neuronGradient * activationDerivate;
 
-            // console.log("---> newWeight: ", newWeight)
+            if (showData) console.log("---> newWeight: ", newWeight)
 
             newModel[`${outputLayer}Connections`][neuron][conn] = newWeight;
         }
@@ -489,15 +489,13 @@ const sgdOptimizer = (model: any, expected: number[], learningRate: number) => {
     
     let nextLayerErrors: number[] = outputErrors;
     
-    console.log("Model values")
-    console.log(modelValues)
-
-    // console.log(`Last layer errors: ${lastLayerErrors}`);
+    if (showData) console.log("Model values")
+    if (showData) console.log(modelValues)
 
     for (var layer = totalLayers - 1; layer > 0; layer--) {
-        console.log("");
-        console.log(`-=-=-=-= HIDDEN LAYER ${layer} =-=-=-=- `);
-        console.log("");
+        if (showData) console.log("");
+        if (showData) console.log(`-=-=-=-= HIDDEN LAYER ${layer} =-=-=-=- `);
+        if (showData) console.log("");
         
         // ? Basic declarations
         let layerValues: number[] = modelValues[layer];
@@ -518,10 +516,10 @@ const sgdOptimizer = (model: any, expected: number[], learningRate: number) => {
         let lastLayerAmount: number
 
         if (layer == 1) {
-            console.log("INPUTS: ", newModel.inputs)
+            if (showData) console.log("INPUTS: ", newModel.inputs)
             lastLayerValues = newModel.inputs
             lastLayerAmount = newModel.inputs.length;
-            console.log("INPUTS AMOUNT: ", lastLayerAmount);
+            if (showData) console.log("INPUTS AMOUNT: ", lastLayerAmount);
         } else {
             lastLayerValues = modelValues[layer - 1]
             lastLayerAmount = newModel[`layer${layer - 1}Amount`];
@@ -539,37 +537,32 @@ const sgdOptimizer = (model: any, expected: number[], learningRate: number) => {
             let neuronError = 0; // ? Acumulative variable of the neuron error
             
             for (var conn = 0; conn < nextLayerAmount; conn++) {
-                console.log(`---> Neuron: ${neuron} | Conn: ${conn}`)
-                console.log("---> NeuronValue: ", neuronValue)
-                console.log("---> NextLayerErrors: ", nextLayerErrors)
-                console.log("---> NextLayerConns: ", nextLayerConns)
+                if (showData) console.log(`Neuron: ${neuron} | Conn: ${conn}`)
+                if (showData) console.log("---> NeuronValue: ", neuronValue)
+                if (showData) console.log("---> NextLayerErrors: ", nextLayerErrors)
+                if (showData) console.log("---> NextLayerConns: ", nextLayerConns)
                 let connValue = nextLayerConns[conn][neuron] // ? Gets the value of the connection
                 let connError = nextLayerErrors[conn] * connValue * neuronDerivate // ? Multiplies the connection weight with the error and the derivate
 
                 neuronError += connError; // ? Adds the error of the connection to the neuron error
             }
 
-            console.log("---> NeuronError: ", neuronError)
+            if (showData) console.log("---> NeuronError: ", neuronError)
             neuronsError.push(neuronError) // ? After all connections have been calculated, the error is pushed
         }
-
-        console.log("NEURONS ERROR: ", neuronsError)
 
         // • Calculates the new weight of each connection
         for (var neuron = 0; neuron < layerAmount; neuron++) {
             for (var conn = 0; conn < lastLayerAmount; conn++) {
                 let oldWeight = model[`layer${layer}Connections`][neuron][conn]
-                // console.log("OLD WEIGHT: ", oldWeight)
                 
                 let newWeight = oldWeight - learningRate * neuronsError[neuron] * lastLayerValues[conn]
-
-                // console.log("Neuron error: ", neuronsError[neuron])
-
-                // console.log("LastLayerVal: ", lastLayerValues[conn])
-
-                // console.log("layer ", layer)
-
-                // console.log("NEW WEIGHT: ", newWeight)
+                
+                if (showData) console.log("---> oldWeight: ", oldWeight)
+                if (showData) console.log("---> neuronError: ", neuronsError[neuron])
+                if (showData) console.log("---> lastLayerVal: ", lastLayerValues[conn])
+                if (showData) console.log("---> newWeight: ", newWeight)
+                
                 newModel[`layer${layer}Connections`][neuron][conn] = newWeight;
             }
         }
@@ -582,65 +575,45 @@ const sgdOptimizer = (model: any, expected: number[], learningRate: number) => {
 
 // * ---------------------------------- EPOCHS ----------------------------------
 
-let epochs = (epochsAmount: number, model: object, trainData: number[][], trainResults: number[][], optimizer, learningRate: number = 0.01, showEpochs: boolean = false, showDetailedEpochs: boolean = true) => {
-    let actualModel = model;
+const epochs = (epochsAmount: number, model: object, trainData: number[][], trainResults: number[][], optimizer, learningRate: number = 0.01, showEpochs: boolean = true, showDetailedEpochs: boolean = false) => {
     
-    // ? For each epoch
-    for (let i = 1; i < epochsAmount + 1; i++) {
-        let outputs: number[][] = [];
-        
-        // ? For each train data
+    let batches = trainData.length;
+    let actualModel = model; // ? This is important because it allows to keep information about the model between epochs
 
-        let usedModel;
+    for (let epoch = 1; epoch < epochsAmount + 1; epoch++) {
+        let epochResults: number[][] = []
 
-        for (let j = 0; j < trainData.length; j++) { 
-            
-            let trainModel = JSON.parse(JSON.stringify(actualModel)); // ? Creates a copy of the model
-            trainModel.inputs = trainData[j];
+        for (let batch = 0; batch < batches; batch++) { // ? Divides the epochs in batches
+            let usedModel = calculateModel(actualModel, trainData[batch]);
 
-            let gModel = calculateModel(trainModel, trainData[j]); // ? Calculates the outputs based on the inputs
+            epochResults.push(usedModel[usedModel.outputLayer])
 
-            outputs.push(gModel[gModel.outputLayer]); // ? Pushes the outputs to a variable for further analysis later
-
-            usedModel = gModel
+            actualModel = JSON.parse(JSON.stringify(optimizer(usedModel, trainResults[batch], learningRate))); // ? Copies the result
         }
 
         if (showEpochs) {
-            if (showDetailedEpochs) console.log("Epoch ", i, ": ", outputs);
-            else {
-                // TODO: Make it calculate percentage
-                // console.log(`Epoch ${i}: ${percentage}`);
-                console.log(`Epoch ${i}: ${outputs}`);
-            }
-        } else if (!showEpochs && i == epochsAmount) console.log(`Epoch ${i}: ${outputs}`);
-
-        // ? For each output obtained, use the optimizer to train it
-        for (let out = 0; out < outputs.length; out++) { 
-            actualModel = JSON.parse(JSON.stringify(optimizer(actualModel, outputs[out], trainResults[out], learningRate, usedModel)));
+            console.log(`Epoch ${epoch}: ${epochResults}`)
+        } else if (epoch == epochsAmount) {
+            console.log(`Epoch ${epoch}: ${epochResults}`)
+            return actualModel
         }
-        // actualModel = JSON.parse(JSON.stringify(dummyMutate(actualModel, mutationRate)));
     }
-
-    return actualModel
 }
 
 // * ---------------------------------- DECLARATIONS AND TESTING ----------------------------------
 
-let brainTest = createModel([["input", 2], ["relu", 2], ["linear", 4], ["sigmoid", 2]], 1)
+let brainTest = createModel([["input", 2], ["sigmoid", 1]], 1)
 
 let simpleTrainData = [[1,1]];
 let complexTrainData = [[1,1], [1,0], [0,1], [0,0]];
 
-let simpleOutData = [[1, 1]];
+let simpleOutData = [[1]];
 let complexOutData = [[1],[0], [0], [1]];
 
-// console.log(brainTest)
+// let test = calculateModel(brainTest, [100, 50])
 
-let calculatedModel = calculateModel(brainTest, [1, 1])
+// console.log(test[test.outputLayer])
 
-console.log(sgdOptimizer(calculatedModel, simpleOutData[0], 0.1))
+let test = epochs(200, brainTest, simpleTrainData, simpleOutData, sgdOptimizer, 0.01, false) // ? A veces es 0.5 y a veces es muy cercano a 0
 
-// epochs(10, brainTest, simpleTrainData, simpleOutData, mutateBrain, 1, true)
-
-// epochs(1, brainTest, simpleTrainData, simpleOutData, sgdOptimizer, 0.1, true)
-// epochs(10, brainTest, complexTrainData, complexOutData, mutateBrain, 1, false)
+console.log(test)
