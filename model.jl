@@ -6,12 +6,6 @@ relu(x) = x > 0 ? x : 0 # ? Es lo mismo que if (x > 0) return x else return 0 en
 
 leakyRelu(x) = x > 0 ? x : 0.01 * x
 
-# function mytanh(x)
-#     top = exp(x) - exp(-x)
-#     bot = exp(x) + exp(-x)
-#     return top/bot
-# end
-
 linear(x) = return x
 
 function softmax(logits)
@@ -43,7 +37,6 @@ function unifyValues(values)
 end
 
 function calculateNeuron(activation, values)
-    # println(activation)
     result = 0
     arrayResult = Array{Float64}(undef, length(values))
 
@@ -97,7 +90,7 @@ end
 
 function createModel(inputsAmount, layersType, layersAmount, initialWeight) 
     if (length(layersType) != length(layersAmount)) 
-        throw(ArgumentError("The amount of layers doesn't match :c")) # ! The face is very important so I understand this is an error I created
+        throw(ArgumentError("The amount of layers doesn't match :c")) # ! The face is very important so I understand this is an error I created and not a sintax error or something like that
     end
 
     model = Model([], inputsAmount, Dict(), Dict(), Dict(), Dict(), "")
@@ -116,36 +109,37 @@ function createModel(inputsAmount, layersType, layersAmount, initialWeight)
 
     for layer in 1:length(layersType) # ? It covers all layers as each layer has a layer before
         if (layersType[layer] == "softmax" && layer != length(layersType)) throw(ArgumentError("The softmax layer should be the last layer >:c")) end # ? If the layer is softmax and it is not the last one
+        
         if (layer == 1)
             weights = Array{Float64}(undef, layersAmount[layer], inputsAmount) # ? Array of size (layersAmount[layer], inputsAmount)
-            # weights = Array{Float64, inputsAmount}
+
             for neuron=1:layersAmount[layer]
                 for conn=1:inputsAmount
                     weights[neuron, conn] = rand() * initialWeight # TODO: Check some way of making it in a way such that if you give it -1 the range will be [-1, 1] and with 1, [0, 1]
                 end
             end
-            # println(weights)
+            
             model.layersConnections["layer$(layer)"] = weights
         else
             weights = Array{Float64}(undef, layersAmount[layer], layersAmount[layer - 1]) # ? Array of size (layersAmount[layer], layersAmount[layer - 1])
-            # weights = Array{Float64, layersAmount[layer - 1]}
+
             for neuron=1:layersAmount[layer]
                 for conn=1:layersAmount[layer - 1]
                     weights[neuron, conn] = rand() * initialWeight
                 end
             end
-            # println(weights)
+
             model.layersConnections["layer$(layer)"] = weights
             
             if (layersType[layer] == "softmax")
                 weights = Array{Float64}(undef, 1, layersAmount[layer]) # ? Array of size (1, layersAmount[layer])
-                # weights = Array{Float64, layersAmount[layer]}
+
                 for neuron=1:1
                     for conn=1:layersAmount[layer]
                         weights[neuron, conn] = 1
                     end
                 end
-                # println(weights)
+
                 model.layersConnections["layer$(layer+1)"] = weights
             end
         end
@@ -172,7 +166,7 @@ function calculateModel(inputsValues, model)
     for layer = 1:length(cModel.layersAmount) # ? It covers all layers as each layer has a layer before
         allNeuronsValues = Array{Float64}(undef, cModel.layersAmount["layer$(layer)"]) # ? Array of size (layersAmount[layer])
         for neuron = 1:cModel.layersAmount["layer$(layer)"] # ? For each neuron
-            # println("Neuron conns: ", cModel.layersConnections["layer$(layer)"][neuron, :])
+
             neuronValues = Array{Float64}(undef, length(cModel.layersConnections["layer$(layer)"][neuron, :])) # ? The two dots specify that it is needed the whole row of the matrix
             if layer == 1
                 for conn = 1:cModel.inputsAmount
@@ -199,10 +193,6 @@ end
 
 # ? println(model.layersType["layer1"]) This will print "sigmoid" or the type of the layer1 in the dictionary layersType
 
-# // Ignore this # ? I'm too confused by the sintax, continue the chat with ChatGPT https://chatgpt.com/c/c20b50a1-9722-4a91-b730-918bcc8baac6
-
-# // Ignore this too # • I actually dont understand anything, so that's a future me problem https://stackoverflow.com/questions/56257781/how-do-we-do-classes-in-julia
-
 # * Genetic algorithms
 
 dummyOptimizer(model, variation, expected, obtained) = return model
@@ -224,20 +214,11 @@ function dummyMutate(oldModel, variation, expected, obtained)
     end
 
     for layer = 1:totalLayers
-        # println("Layer: ", layer)
-        # println(model.layersValues["layer$layer"])
+
         for value = 1:model.layersAmount["layer$layer"]
             model.layersValues["layer$layer"][value] = 0
         end
-        # model.layersValues["layer$layer"] = Array{Float64}(undef, model.layersAmount["layer$layer"])
-        # println(model.layersValues["layer$layer"])
     end
-
-    # println("Old model")
-    # println(oldModel.layersValues)
-
-    # println("New model")
-    # println(model.layersValues)
 
     return model
 end
@@ -272,29 +253,10 @@ end
 
 # * Testing
 
-# model = createModel(2, ["leakyRelu", "tanh"], [2, 1], 1)
-# model = createModel(2, ["sigmoid"], [2], 1)
 model = createModel(2, ["sigmoid", "softmax"], [2, 2], 1)
 model = calculateModel([1, 1], model)
 
 println(model.layersValues[model.outputLayer])
-
-# epochs(10, model, dummyMutate, 0.2, [[1,1]], [1])
-
-# copied_model = deepcopy(model)
-# println(copied_model)
-
-# println(tanh(17))
-
-# ? Verifies if the deep copy worked as intended
-# @assert copied_model != model
-# @assert copied_model.inputs == model.inputs
-# @assert copied_model.inputsAmount == model.inputsAmount
-# @assert copied_model.layersAmount == model.layersAmount
-# @assert copied_model.layersValues == model.layersValues
-# @assert copied_model.layersConnections == model.layersConnections
-# @assert copied_model.layersType == model.layersType
-# @assert copied_model.outputLayer == model.outputLayer
 
 # TODO: 1) Complete softmax function integration to model
 # TODO: 2) Complete model testing
