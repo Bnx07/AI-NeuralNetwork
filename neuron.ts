@@ -86,6 +86,17 @@ const derSoftmax = (logits: number[]): number[] => {
 
 // ? In both cases, the w1 is different, sig1's w1 could be 0.4 and sig2's w1 could be 0.25
 
+// ? There are different types of layers, such as:
+    // • Dense Layer => Fully connected layer, the one I'm using here
+    // • Convultional Layer => Applies convultional filters to the entries
+    // • Pooling Layer
+    // • Recurrent Layer
+    // • Long Short-Term Memory
+    // • Gated Recurrent Unit
+    // • Dropout Layer
+    // • Batch Normalization Layer
+    // • Embedding Layer
+
 // * ---------------------------------- OPTIMIZERS ----------------------------------
 // ! Because of complexity, I'm using SGD (Stochastic Gradient Descent)
 
@@ -212,7 +223,7 @@ const calculateDerivateValue = (activation: string, value: number, showResult = 
 // ? Array de ejemplo: [["input", 4], ["sigmoid", 3], ["sigmoid", 1]]
 let createModel = (layers :any[][], initialWeightValue :number = 1) => {
     // ! The initialWeightValue is used to create a range between initialWeightValue and -initialWeightValue
-    let model :any = {}
+    let model: any = {}
 
     // ? Handling input layer
     model.inputs = [];
@@ -221,8 +232,8 @@ let createModel = (layers :any[][], initialWeightValue :number = 1) => {
     // ? Handling hidden layers
     for (let i = 1; i < layers.length; i++) { // ? Iterate over layers except the input one (Thats why it starts as 1)
         
-        let lastLayerAmount :number;
-        let layerConnections :number[][] = []; // ? This are the connections with last layer, will be pushed at the end
+        let lastLayerAmount: number;
+        let layerConnections: number[][] = []; // ? This are the connections with last layer, will be pushed at the end
         
         let propName = `layer${i}`; // ? The layer 0 is the input one
         model[propName] = [];
@@ -574,7 +585,9 @@ const sgdOptimizer = (model: any, expected: number[], learningRate: number, show
 
 // * ---------------------------------- EPOCHS ----------------------------------
 
-const epochs = (epochsAmount: number, model: object, trainData: number[][], trainResults: number[][], optimizer, learningRate: number = 0.01, showEpochs: boolean = true, showDetailedEpochs: boolean = false) => {
+const epochs = (epochsAmount: number, model: object, trainData: number[][], trainResults: number[][], optimizer, learningRate: number = 0.01, showEpochs: boolean = true, showDetailedEpochs: boolean = false, showOptimizerLogs = false) => {
+
+    // FIXME: Could try swapping the training method from "Try all trainData and then fix it with every trainResult" to "Try one trainData, fix it and continue with the others"
     
     let batches = trainData.length;
     let actualModel = model; // ? This is important because it allows to keep information about the model between epochs
@@ -587,16 +600,16 @@ const epochs = (epochsAmount: number, model: object, trainData: number[][], trai
 
             epochResults.push(usedModel[usedModel.outputLayer])
 
-            actualModel = JSON.parse(JSON.stringify(optimizer(usedModel, trainResults[batch], learningRate))); // ? Copies the result
+            actualModel = JSON.parse(JSON.stringify(optimizer(usedModel, trainResults[batch], learningRate, showOptimizerLogs))); // ? Copies the result
         }
 
         if (showEpochs) {
             console.log(`Epoch ${epoch}: ${epochResults}`)
         } else if (epoch == epochsAmount) {
             console.log(`Epoch ${epoch}: ${epochResults}`)
-            return actualModel
         }
     }
+    return actualModel
 }
 
 // * ---------------------------------- DECLARATIONS AND TESTING ----------------------------------
@@ -604,15 +617,23 @@ const epochs = (epochsAmount: number, model: object, trainData: number[][], trai
 let brainTest = createModel([["input", 2], ["sigmoid", 1]], 1)
 
 let simpleTrainData = [[1,1]];
+let normalTrainData = [[1, 0], [0, 1], [1, 1], [0, 0]]
 let complexTrainData = [[1,1], [1,0], [0,1], [0,0]];
 
 let simpleOutData = [[1]];
+let normalOutData = [[0], [0], [1], [0]]
 let complexOutData = [[1],[0], [0], [1]];
 
 // let test = calculateModel(brainTest, [100, 50])
 
 // console.log(test[test.outputLayer])
 
-let test = epochs(2000, brainTest, simpleTrainData, simpleOutData, sgdOptimizer, 0.01, false) // ? A veces es 0.5 y a veces es muy cercano a 0
+// let test = epochs(1000, brainTest, complexTrainData, complexOutData, sgdOptimizer, 1, false) // ? A veces es 0.5 y a veces es muy cercano a 0
+// let test = epochs(1000, brainTest, simpleTrainData, simpleOutData, sgdOptimizer, 0.1, false, false, false) // ? A veces es 0.5 y a veces es muy cercano a 0
+let test = epochs(10000, brainTest, normalTrainData, normalOutData, sgdOptimizer, 0.01, false);
 
 console.log(test)
+
+// FIXME: Con varias capas ocultas, está llegando a las mismas conexiones entre capas, está espejandose
+
+// console.log(calculateModel(test, simpleTrainData[0]))
