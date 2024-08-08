@@ -1,66 +1,4 @@
-# * Neuron functions
-
-sigmoid(x) = return 1 / (1 + exp(-x))
-
-relu(x) = x > 0 ? x : 0 # ? Es lo mismo que if (x > 0) return x else return 0 end
-
-leakyRelu(x) = x > 0 ? x : 0.01 * x
-
-linear(x) = return x
-
-function softmax(logits)
-    # expScores = Array{Float64}(undef, length(logits)) # ? Julia needs to know the exact size of the array (Or matrix) when initialized
-    expScores = exp.(logits)
-    totalSum = sum(expScores)
-    finalScores = expScores ./ totalSum
-    
-    # ! Just revision code
-    # totalPercentage = 0
-    # for i=1:length(logits)
-    #     totalPercentage += finalScores[i]
-    # end
-    # println(totalPercentage)
-
-    return finalScores
-end
-
-# * Auxiliar functions
-
-function unifyValues(values)
-    total = 0
-
-    for i=1:length(values)
-        total += values[i]
-    end
-
-    return total
-end
-
-function calculateNeuron(activation, values)
-    result = 0
-    arrayResult = Array{Float64}(undef, length(values))
-
-    # ? If doesnt work, try global result
-    if (activation == "sigmoid")
-        result = sigmoid(unifyValues(values))
-    elseif (activation == "relu")
-        result = relu(unifyValues(values))
-    elseif (activation == "leakyRelu")
-        result = leakyRelu(unifyValues(values))
-    elseif (activation == "tanh")
-        result = tanh(unifyValues(values))
-    elseif (activation == "linear")
-        result = linear(unifyValues(values))
-    elseif (activation == "softmax")
-        arrayResult = softmax(values)
-    end
-
-    if (activation == "softmax")
-        return arrayResult
-    else
-        return result
-    end
-end
+include("neuron.jl")
 
 # TODO: calculateDerivate is equal to calculateNeuron but with the derivates of the functions
 
@@ -193,70 +131,14 @@ end
 
 # ? println(model.layersType["layer1"]) This will print "sigmoid" or the type of the layer1 in the dictionary layersType
 
-# * Genetic algorithms
+export createModel, calculateModel
 
-dummyOptimizer(model, variation, expected, obtained) = return model
+# # * Testing
 
-function dummyMutate(oldModel, variation, expected, obtained)
-    totalLayers = parse(Int, SubString(oldModel.outputLayer, 6))
+# model = createModel(2, ["sigmoid", "softmax"], [2, 2], 1)
+# model = calculateModel([1, 1], model)
 
-    model = deepcopy(oldModel)
-
-    for layer = 1:totalLayers
-        for neuron = 1:model.layersAmount["layer$layer"]
-            for conn = 1:length(model.layersConnections["layer$layer"][neuron, :])
-                range = model.layersConnections["layer$layer"][neuron, conn] * variation
-                actualValue = model.layersConnections["layer$layer"][neuron, conn]
-
-                model.layersConnections["layer$layer"][neuron, conn] = rand() * 2range + (actualValue - range)
-            end
-        end
-    end
-
-    for layer = 1:totalLayers
-
-        for value = 1:model.layersAmount["layer$layer"]
-            model.layersValues["layer$layer"][value] = 0
-        end
-    end
-
-    return model
-end
-
-# ! DISCARDED FOR THE MOMENT
-# // function sgdOptimizer(oldModel, variation, expected, obtained)
-    # USE MSE
-    # newWeight = oldWeight * learningRate * lossFunction (MSE)
-# // end
-
-# ' Suggested optimizers
-# • ADAM
-# • RMSProp
-# • AdaGrad
-# • Momentum
-
-# ' Best optimizer to start with: ADAM
-
-# * Epochs
-
-function epochs(epochsAmount, model, optimizer, variation, trainData, trainExpected)
-    gModel = deepcopy(model)
-    for epoch = 1:epochsAmount
-        for batch = 1:length(trainData)
-            excecuted = calculateModel(trainData[batch], gModel)
-            obtained = excecuted.layersValues[excecuted.outputLayer]
-            gModel = optimizer(gModel, variation, trainExpected[batch], obtained)
-            println("Epoch $epoch, Batch $batch, Output: $obtained") # TODO: Todavia queda hacer el mutate con el optimizer
-        end
-    end
-end
-
-# * Testing
-
-model = createModel(2, ["sigmoid", "softmax"], [2, 2], 1)
-model = calculateModel([1, 1], model)
-
-println(model.layersValues[model.outputLayer])
+# println(model.layersValues[model.outputLayer])
 
 # TODO: 1) Complete softmax function integration to model
 # TODO: 2) Complete model testing

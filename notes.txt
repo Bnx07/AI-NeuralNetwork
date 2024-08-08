@@ -1,0 +1,3 @@
+epochs utilizes calculateModel
+
+calculateModel utilizes calculateNeuron
